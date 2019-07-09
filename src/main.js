@@ -39,9 +39,16 @@ import store from './store';
 import routes from './routes';
 import app from './app';
 
+import http from './utils/http';
+import shajs from './utils/sha';
+import Base64 from './utils/base64';
+import tool from './utils/tools';
+import auth from './utils/auth';
+
 Vue.use(Router);
 Vue.use(ElementUI);
 Vue.use(apis);
+
 
 let router = new Router({ routes });
 
@@ -53,5 +60,98 @@ if (process.env.NODE_ENV != 'production') {
  */
 Vue.prototype.$config = configure;
 
+
+/**
+ * @description http拦截器，网关签名认证
+ */
+const deviceid = tool.uuid();
+http
+    .interceptors
+    .request
+    .use(request => {
+        let defaults = {
+            "content-type": "application/json",
+            "requestsource": "",
+            "mebchannel": "",
+            "mebappName": '',
+            "appid": '111',
+            "nonce": "3343434",
+            "mebdeviceId": deviceid
+        };
+
+        let timestamp = Math.round(Date.now() / 1000).toString();
+
+        defaults['timestamp'] = timestamp;
+
+        let arr = ['appid=111', 'nonce=3343434', `timestamp=${timestamp}`];
+        let params = request.params, splitParmas = [];
+
+        for (let k in params) {
+            splitParmas.push(`${k}=${params[k]}`);
+        }
+        arr.push(...splitParmas);
+
+        arr.sort();
+
+        let queryString = arr.join('&') + '&secret=9uCh4qxBlFqap/+KiqoM68EqO8yYGpKa1c+BCgkOEa4=';
+
+        let sha = shajs.hex_sha1(queryString);
+
+        let sigture = Base64.Base64.encode(sha);
+        defaults.sigture = sigture;
+
+        defaults.timestamp = timestamp;
+
+        defaults.token = auth.token;
+
+        request.headers = Object.assign(request.headers, defaults);
+
+        return request;
+    });
+
+/**
+ * @description http拦截器，http状态底层处理
+ */
+http.interceptors.response.use(response => {
+    return response;
+}, error => {
+    if (error.response) {
+        switch (error.response.status) {
+            case 401:
+                // router.replace({ name: 'signIn' })
+                break;
+        }
+    }
+    return Promise.reject(error.response && error.response.data) // 返回接口返回的错误信息
+});
+
+
+router.beforeHooks.unshift((to, from, next) => {
+
+    if (!to.matched.some(q => q.meta.auth)) {
+        return next();
+    }
+    var authRoutes = to.matched.filter(function (route) {
+        return route
+            .meta
+            .hasOwnProperty('auth');
+    });
+
+    let roles = authRoutes[authRoutes.length - 1].meta.auth;
+
+    if (roles && (roles === true || roles.constructor === Array)) {
+
+        if (!auth.isAuthenticated) {
+            // router.replace({ name: 'signIn' })
+            next();
+        } else if (roles.constructor === Array) {
+            //TODO:权限点处理
+        } else {
+            next();
+        }
+    } else {
+        next();
+    }
+});
 
 new Vue({ el: '#app', store, router, render: h => h(app) })
