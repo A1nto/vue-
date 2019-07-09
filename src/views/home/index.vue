@@ -1,6 +1,6 @@
 <template>
     <div class="bs-view">
-
+        内容区域
     </div>
 </template>
 <script> 

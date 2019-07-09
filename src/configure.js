@@ -6,12 +6,12 @@ const conf = {
 
 //开发环境
 if (env == 'development') {
-    conf.apiHost = 'https://gatedev.meb.com/spread/outside/v1/partner/';
+    conf.apiHost = '';
 }
 
 //测试环境
 if (env == 'staging') {
-    conf.apiHost = 'https://gatedev.meb.com/spread/outside/v1/partner/';
+    conf.apiHost = '';
 }
 
 module.exports = conf
